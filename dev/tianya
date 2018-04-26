@@ -1,0 +1,85 @@
+#!/usr/bin/python
+# encoding: utf-8
+from calibre.web.feeds.recipes import BasicNewsRecipe
+from calibre.ebooks.BeautifulSoup import BeautifulSoup
+import urllib2 
+
+
+def geturl(url):
+    index1, index2 = url.rfind('-'), url.rfind('.')
+    if  (url[0:21] == 'http://bbs.tianya.cn/') and (url[-6:] == url_px) and index1>0 and index2>0:
+        url_base, start_page = url[0:index1+1], int(url[index1+1:index2])
+        loop = False
+        return url, url_base, start_page
+    else:
+        print u'输入的链接不完整，或者格式不对\n'
+def seturl(info, i):
+    return info[0]+str(i)+info[1]
+def getHtml(url):
+    response = urllib2.urlopen(url) 
+    return response.read()
+
+
+# 输入参数
+TY_URL = 'http://bbs.tianya.cn/post-free-2258210-280.shtml'
+# 1、输入 URL
+start_page, end_page, url_base, url_px = 1, 1, '', '.shtml'
+url, url_base, start_page = geturl( TY_URL )
+url_info = [url_base, url_px]
+# 获取帖子的基本信息
+soup = BeautifulSoup( getHtml( seturl(url_info, 1) ), "html.parser", from_encoding="utf-8" )
+user_info = soup.find('div', class_='atl-info').find('span').find('a')
+# 获取总页数 
+# ADD 处理小于一页的情况
+div_pages = soup.find('div', class_='atl-pages').find('form')
+if div_pages is None:
+    maxpage = 1
+else:
+    maxpage = div_pages.find('a', class_='js-keyboard-next').find_previous_sibling('a').text
+base_info = [soup.title.text.split('_')[0], user_info['uname'], user_info['uid']]
+print u'输入的链接解析完毕\n===================\n输入 URL：', url
+print u'帖子标题:', base_info[0]
+print u'帖子作者:', base_info[1], 'UID:', base_info[2]
+print u'当 前 页：', start_page, u'\n帖子总页数:', maxpage
+
+
+
+class tianya(BasicNewsRecipe):
+    title = base_info[0]
+    __author__ = base_info[1]
+    description = u'当 前 页：' + str(start_page) + u'\n帖子总页数:' + str(maxpage)
+    timefmt = '[%Y-%m-%d]'
+    no_stylesheets = True
+    # INDEX = 'http://drops.wooyun.org/'
+    # auto_cleanup = True                   # 如果没有手动分析文章结构，可以考虑开启该选项自动清理正文内容
+    language = 'zh-CN'
+
+    remove_tags_before = [{ 'class': 'atl-main' }]
+    #抓取每一个页面中保留的tag
+    keep_only_tags = [{ 'class': 'atl-item' }]
+    #页面中删除的Tag
+    remove_tags=[{'class':'atl-head'}, {'class':'atl-reply'}, {'class':'atl-con-hd clearfix'}, {'class':'atl-con-ft clearfix'}]
+    #指定Tag之后的元素都被删除
+    remove_tags_after=[{'class':'atl-main'}]
+
+    max_articles_per_feed = 10000           # 默认最多文章数是100，可改为更大的数字以免下载不全
+
+    def parse_index(self):
+        # soup = self.index_to_soup(self.INDEX)
+        # pages_info = soup.findALL(**{'class': 'pages'}).text.split()
+        # print 'pages_info:', pages_info
+        start_page_i = 20      # int(pages_info[1])
+        end_page_i = 23       # int(pages_info[3])
+        articles = [] 
+        for p in range(start_page, end_page+1):     # 处理每一个目录页
+            articles.append({'title': base_info[0], 'url': seturl(url_info, p)}) 
+            # soup_page = self.index_to_soup( seturl(url_info, p) )
+            # soup_titles = soup_page.findAll(**{'class': 'entry-title'})     # 从目录页中提取正文标题和链接
+            # for soup_title in soup_titles:
+                # href = soup_title.a
+                # articles.append({'title': href['title'][18:], 'url': href['href']}) 
+            # print 'page %d done' % p
+        # articles.reverse()                 # 文章倒序，让其按照时间从前到后排列
+        res = [(u'天涯帖子', articles)]    # 返回tuple，分别是电子书名字和文章列表
+        self.abort_recipe_processing('test')  # 用来中断电子书生成，调试用
+        return res

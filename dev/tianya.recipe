@@ -1,0 +1,133 @@
+#!/usr/bin/python
+# encoding: utf-8
+
+from calibre.web.feeds.recipes import BasicNewsRecipe
+ 
+class Pro_Git_ZH(BasicNewsRecipe):
+    title = '天涯脱水贴'
+    description = '天涯脱水贴'
+
+    # 封面 1、指定图片 2、设置标题，时间(显示在封面)
+    # cover_url = 'http://iissnan.com/progit/assets/img/pro-git-cover.jpeg'
+    timefmt = '[%Y-%m-%d]'
+ 
+    url_prefix = 'http://bbs.tianya.cn/'
+
+    language = 'zh-CN'
+    no_stylesheets = True
+    # no_stylesheets = False
+    # 如果没有手动分析文章结构，可以考虑开启该选项自动清理正文内容
+    # auto_cleanup = True
+    # 需要保留的 Tag 
+    keep_only_tags = [dict(name='div', attrs={ 'class': 'atl-item', 'class': 'atl-pages'})]
+    # 需要删除的 Tag
+    # remove_tags = [{'class':'atl-head'}, {'class':'atl-reply'}, {'class':'atl-con-hd clearfix'}, {'class':'atl-con-ft clearfix'}]
+    # 指定 Tag 之前 全部删除
+    # remove_tags_before = [{ 'class': 'atl-main' }]
+    # 指定 Tag 之后 全部删除
+    # remove_tags_after = [{ 'class': 'atl-main' }]
+    # 默认最多文章数是100，可改为更大的数字以免下载不全
+    max_articles_per_feed = 1
+
+    def onelayer(self, content, reply):
+        reportme = reply.find('a', class_='reportme a-link')
+        if reportme['authorid'] == user_info['uid']:
+            return content.get_text("\n", strip=True)+'\n'
+        else:
+            return False
+    def skip_ad_pages(self, soup):
+        print 'skip_ad_pages0---------------------00000000000000-------------'
+        # div_pages = soup.find('div', {'class': 'atl-pages'}).find('form')
+
+        item_tag = soup.findAll('div', {'class': 'atl-item'})
+        item_count = 0
+        for child in item_tag:
+            content = child.find('div', {'class': 'bbs-content'})
+            reply = content.find_next_sibling('div', {'class': 'atl-reply'})
+            if reply is None:
+                print 'none'
+            else:
+                reportme = reply.find('a', {'class': 'reportme a-link'})
+                if reportme['authorid'] == user_info['uid']:
+                    return content.get_text("\n", strip=True)+'\n'
+                else:
+                    return False
+                layer = onelayer(content, reply)
+                if layer:
+                    item_count = item_count + 1
+                    writeline(filehandle, layer.encode('utf-8'))
+        filehandle.close()
+        # div_pages = soup.find('div', class_='atl-pages')
+        # div_pages = soup.find(dict(name='div', attrs={'class': 'atl-pages'}))
+        # .find('form')
+        print '-------------------------------\n\n'
+        print 'skip_ad_pages1'
+        print div_pages
+        print '\n\n-------------------------------'
+        # 获取总页数 
+        # ADD 处理小于一页的情况
+        if div_pages is None:
+            maxpage = 1
+        else:
+            maxpage = div_pages.find('a', class_='js-keyboard-next').find_previous_sibling('a').text
+
+        print '-------------------------------\n\n'
+        print 'skip_ad_pages2'
+        print maxpage
+        print '\n\n-------------------------------'
+        # self.abort_recipe_processing('arp-----------------------------------------' + first_fetch)
+
+        self.abort_article('alert')
+
+    def preprocess_html(self, soup):
+
+        print '-------------------------------\n\n'
+        print 'preprocess_html'
+        print soup.title
+        print '\n\n-------------------------------'
+        self.abort_recipe_processing('arp-----------------------------------------' + first_fetch)
+
+        self.abort_article('alert')
+
+    def parse_index(self):
+        # soup = self.index_to_soup(self.url_prefix)
+        # 1、输入 URL
+        start_page, end_page, url_base, url_px = 1, 1, '', '.shtml'
+        url, url_base, start_page = geturl()
+        url_info = [url_base, url_px]
+        # 获取帖子的基本信息
+        soup = BeautifulSoup(requests.get(seturl(url_info, 1)).content, "html.parser", from_encoding="utf-8" )
+        user_info = soup.find('div', class_='atl-info').find('span').find('a')
+        # 获取总页数 
+        # ADD 处理小于一页的情况
+        div_pages = soup.find('div', class_='atl-pages').find('form')
+        if div_pages is None:
+            maxpage = 1
+        else:
+            maxpage = div_pages.find('a', class_='js-keyboard-next').find_previous_sibling('a').text
+        base_info = [soup.title.text.split('_')[0], user_info['uname'], user_info['uid']]
+        print u'输入的链接解析完毕\n===================\n输入 URL：', url
+        print u'帖子标题:', base_info[0]
+        print u'帖子作者:', base_info[1], 'UID:', base_info[2]
+        print u'当 前 页：', start_page, u'\n帖子总页数:', maxpage
+        # div = soup.find('ul', { 'class': 'toc' })
+ 
+        articles = [{'title': 'a1', 'url': 'file:///G:/000/python/ebook/demo.html'}, 
+        {'title': 'b2', 'url': 'http://bbs.tianya.cn/post-free-2258210-282.shtml'}]
+        # for link in div.findAll('a'):
+
+            # til = link.contents[0].strip()
+            # url = self.url_prefix +'/'+ link['href']
+            # a = { 'title': til, 'url': url }
+ 
+            # articles.append(a)
+ 
+        ans = [('天涯脱水贴', articles)]
+        # self.abort_article('alert')
+
+        # self.abort_recipe_processing('arp-----------------------------------------')
+        print u'hahahahahahahahahahahaha'
+ 
+        return ans
+
+
