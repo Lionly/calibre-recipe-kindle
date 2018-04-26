@@ -1,0 +1,57 @@
+#!/usr/bin/python
+# encoding: utf-8
+
+from calibre.web.feeds.recipes import BasicNewsRecipe
+ 
+class Pro_Git_ZH(BasicNewsRecipe):
+ 
+    title = 'Pro_Git_ZH'
+    __author__ = "Lei YU"
+    description = 'Pro_Git_Chinese'
+
+    # 封面 1、指定图片 2、设置标题，时间(显示在封面)
+    cover_url = 'http://iissnan.com/progit/assets/img/pro-git-cover.jpeg'
+    timefmt = '[%Y-%m-%d]'
+ 
+    url_prefix = 'http://iissnan.com/progit/'
+
+    language = 'zh-CN'
+    no_stylesheets = False
+    # 如果没有手动分析文章结构，可以考虑开启该选项自动清理正文内容
+    # auto_cleanup = True
+    # 需要保留的 Tag 
+    keep_only_tags = [{ 'class': 'col-md-8' }]
+    # keep_only_tags = [ #保留文章正文
+    #     dict(name='font', attrs={'color':['#003366']}),
+    #     dict(name='td', attrs={'colspan':['3']})
+    # ]
+    # remove_tags = [ #去除多余元素
+    #     dict(name='font', attrs={'color':['#CC3333']})
+    # ]
+    # 需要删除的 Tag
+    # remove_tags = [{'class': 'x-wiki-info'}]
+    # 指定 Tag 之前 全部删除 注：此项不是 数组
+    # remove_tags_before = dict(name='font', attrs={'color':['#CC3333']})
+    # 指定 Tag 之后 全部删除
+    # remove_tags_after = [{'class': 'x-wiki-content'}]
+    # 默认最多文章数是100，可改为更大的数字以免下载不全
+    # max_articles_per_feed = 3
+ 
+    def parse_index(self):
+        soup = self.index_to_soup(self.url_prefix)
+ 
+        div = soup.find('ul', { 'class': 'toc' })
+ 
+        articles = []
+        for link in div.findAll('a'):
+
+            til = link.contents[0].strip()
+            url = self.url_prefix +'/'+ link['href']
+            a = { 'title': til, 'url': url }
+ 
+            articles.append(a)
+ 
+        ans = [('Pro_Git_ZH', articles)]
+ 
+        return ans
+

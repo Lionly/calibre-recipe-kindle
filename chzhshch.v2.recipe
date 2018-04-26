@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# vim:fileencoding=utf-8
+from __future__ import unicode_literals, division, absolute_import, print_function
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class book(BasicNewsRecipe):
+    '''自定义的Recipe都继承自Calibre提供的基类BasicNewsRecipe，必须实现parse_index()方法
+    '''
+    # 电子书名称
+    title = u'缠中说禅的新浪博客(整理版)'
+    __author__ = u'李彪(http://blog.sina.com.cn/chzhshch)'
+    description = u'当代奇人，一个永远只愿站立且希望探索、展示人的所有潜能和可能的人，目前真实身份未明。' \
+                  u'他狂放不羁、博学多才，自称全球第一博客，2002年至2008不同身份共发表网络作品约1848篇，' \
+                  u'涵盖宗教文化、诗词歌赋、文史哲学、时政经济、音乐艺术、数理科技等各领域，以豪放的风格，' \
+                  u'犀利的语言，颠覆、透视性的思维洞穿、揭示事物本质，是众多网友的精神导师。'
+    timefmt = '[%Y-%m-%d]'
+    # 最大章节数
+    max_articles_per_feed = 1000
+    # simultaneous_downloads = 10
+    # 设置每隔1s下载一个章节，默认值为0，当网络不好时，可以把这个值调大点
+    delay = 0
+    no_stylesheets = True
+    # remove_javascript = True
+    # auto_cleanup = False
+    # 抓取每一个页面中保留的tag
+    keep_only_tags = [
+        dict(name='h1'),
+        dict(name='span', attrs={'class': 'pubtime'}),
+        dict(name='div', attrs={'id': 'sina_keywｏｒd_ad_area2'})
+    ]
+    # 页面中删除的Tag
+    remove_tags = [
+        dict(name='font', text='浏览“缠中说禅”更多文章请点击进入'),
+        dict(name='a')
+    ]
+    # 指定Tag之后的元素都被删除
+    # remove_tags_after = [dict(name='div', attrs={'style': ['margin:15px 0px 0px 0px; float:right']})]
+
+    def get_title(self, link):
+        return link.contents[0].strip()
+
+    url_prefix = 'http://www.fxgan.com/chan_fenlei/'
+
+    def parse_index(self):
+        # index_to_soup()由BasicNewsRecipe实现
+        # 使用 Beautiful soup 抓取一个网址，并获得这个网页内容的 soup 对象
+        soup = self.index_to_soup('http://www.fxgan.com/chan_fenlei/index.htm')
+        # 两层 1 一卷(部) 2 一章
+        tables = soup.body.div.ul.contents
+        volumes = []
+        for i, e in enumerate(tables):
+            # 每一卷的标题
+            if e.name != 'li':
+                continue
+            volume_name = self.get_title(e.find('a'))
+            print('--- start', volume_name)
+            # 每一卷的文章
+            articles = []
+            # 找到每一个章节的标题和对应的URL，Calibre会下载每一个URL的html，使用上面的类属性进行解析
+            for link in tables[i+1]:
+                # 每一章的标题 URL
+                url = link.find('a')
+                a = {'title': self.get_title(url), 'url': self.url_prefix + url['href'].strip()}
+                # 向一卷里添加一章
+                articles.append(a)
+            # 添加一卷
+            print('--- done', volume_name, len(articles))
+            volumes.append((volume_name, articles))
+        # 返回一个列表，这个列表中是多个元组，
+        # 每个元组是书的一卷 eg: ('第一卷', articles)
+        # 每一卷中又有多个章节articles
+        return volumes

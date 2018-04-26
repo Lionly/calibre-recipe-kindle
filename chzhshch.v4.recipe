@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+# vim:fileencoding=utf-8
+from __future__ import unicode_literals, division, absolute_import, print_function
+from calibre.web.feeds.news import BasicNewsRecipe
+
+# 从新浪抓取的文章中无图片，其余都正常，不影响阅读
+
+
+class book(BasicNewsRecipe):
+    '''自定义的Recipe都继承自Calibre提供的基类BasicNewsRecipe，必须实现parse_index()方法
+    '''
+    # 电子书名称
+    title = u'缠中说禅的新浪博客'
+    __author__ = u'李彪(http://blog.sina.com.cn/chzhshch)'
+    description = u'当代奇人，一个永远只愿站立且希望探索、展示人的所有潜能和可能的人，目前真实身份未明。' \
+                  u'他狂放不羁、博学多才，自称全球第一博客，2002年至2008不同身份共发表网络作品约1848篇，' \
+                  u'涵盖宗教文化、诗词歌赋、文史哲学、时政经济、音乐艺术、数理科技等各领域，以豪放的风格，' \
+                  u'犀利的语言，颠覆、透视性的思维洞穿、揭示事物本质，是众多网友的精神导师。'
+    timefmt = '[%Y-%m-%d]'
+    # 最大章节数
+    max_articles_per_feed = 1000
+    # 设置每隔1s下载一个章节，默认值为0，当网络不好时，可以把这个值调大点
+    # simultaneous_downloads = 10
+    delay = 0
+    no_stylesheets = True
+    # 抓取每一个页面中保留的tag  [ dict(name='div', attrs={'class':'advert'}), dict(name='div', attrs={'class':'advert'}) ]
+    keep_only_tags = [
+        dict(name='div', attrs={'class': 'articalTitle'}),
+        dict(name='div', attrs={'id': 'sina_keyword_ad_area2'})
+    ]
+    # 页面中删除的Tag
+    remove_tags = [
+        dict(name='div', attrs={'class': 'turnBoxzz'}),
+        dict(name='font', text='浏览“缠中说禅”更多文章请点击进入'),
+        dict(name='a')
+    ]
+    # 指定Tag之后的元素都被删除
+    # remove_tags_after=[{'class':'x-wiki-content'}]
+
+    def get_title(self, link):
+        return link.contents[0].strip()
+
+    # url_prefix = 'http://blog.sina.com.cn/'
+
+    def parse_index(self):
+        # index_to_soup()由 BasicNewsRecipe 实现，使用 Beautiful soup 抓取一个网址，并获得这个网页内容的soup对象
+        html = self.index_to_soup('http://blog.sina.com.cn/s/articlelist_1215172700_0_1.html', raw=True)
+        clean_html = html.replace('<!–[if lte IE 6]>', '').replace('<![endif]–>', '')
+        soup = self.index_to_soup(clean_html)
+        # 整块目录 http://blog.sina.com.cn/s/articlelist_1215172700_0_2.html
+        vols = soup.find('ul').findAll('a')
+        volumes = []
+        for e in vols:
+            # 每一卷的名称
+            volume_name = self.get_title(e)
+            print('--- start', volume_name)
+            # 每一卷的文章
+            articles = []
+            vol_index = e['href']
+            is_end = False
+            while is_end is False:
+                # 处理每一个目录页
+                print('--- index', vol_index)
+                html = self.index_to_soup(vol_index, raw=True)
+                clean_html = html.replace('<!–[if lte IE 6]>', '').replace('<![endif]–>', '')
+                soup = self.index_to_soup(clean_html)
+                div = soup.find(attrs={'class': 'articleList'})
+                for cell in div.findAll(attrs={'class': 'articleCell SG_j_linedot1'}):
+                    link = cell.find('a')
+                    time = cell.find(attrs={'class': 'atc_tm SG_txtc'})
+                    a = {'title': self.get_title(link), 'url': link['href'], 'date': time.string}
+                    articles.append(a)
+                # 是否有下一页
+                next_div = soup.find(attrs={'class': 'SG_pgnext'})
+                if next_div is not None:
+                    # next 目录页
+                    vol_index = next_div.find('a')['href']
+                else:
+                    is_end = True
+            articles.reverse()
+            # 添加一卷
+            print('--- done', volume_name, len(articles))
+            volumes.append((volume_name, articles))
+        # 找到每一个章节的标题和对应的URL，Calibre 会下载每一个URL的html，使用上面的类属性进行解析
+        # 返回一个列表，这个列表中是多个元组，每个元组是书的一卷('卷名称', articles)，每一卷中又有多个章节articles
+        return volumes
+
+    def preprocess_raw_html(self, raw_html, url):
+        html = raw_html.replace('<!–[if lte IE 6]>', '').replace('<![endif]–>', '')
+        print('--- preprocess', url)
+        return html
